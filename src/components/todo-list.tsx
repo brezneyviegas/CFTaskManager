@@ -12,53 +12,62 @@ import { ThemeToggle } from './theme-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import PomodoroTimer from './pomodoro-timer';
-
-const initialTodos: Todo[] = [
-  { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true, timeSpent: 305, timerRunning: false, lastStarted: null },
-  { id: '2', title: 'Create UI components', description: 'Build reusable components for Todo items and forms.', completed: true, timeSpent: 1245, timerRunning: false, lastStarted: null },
-  { id: '3', title: 'Implement state management', description: 'Use React hooks for local state management.', completed: false, timeSpent: 623, timerRunning: false, lastStarted: null },
-  { id: '4', title: 'Add dummy authentication', description: 'Create a login page that redirects on success.', completed: false, timeSpent: 0, timerRunning: false, lastStarted: null },
-];
+import { useToast } from '@/hooks/use-toast';
 
 export default function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const savedTodos = localStorage.getItem('todos');
-    setTodos(savedTodos ? JSON.parse(savedTodos) : initialTodos);
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('todos', JSON.stringify(todos));
-    }
-  }, [todos, isMounted]);
+    const fetchTodos = async () => {
+      try {
+        const response = await fetch('/api/todos');
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+        const data = await response.json();
+        setTodos(data);
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not fetch your tasks. Please try again later.',
+        });
+        console.error(error);
+      } finally {
+        setIsMounted(true);
+      }
+    };
+    fetchTodos();
+  }, [toast]);
 
   const sortedTodos = useMemo(() => {
     const sorted = [...todos];
+    // Create a stable sort by using the ID as a secondary sort key
+    const idNum = (id: string) => parseInt(id, 10) || 0;
+
     switch (sortBy) {
       case 'oldest':
-        sorted.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+        sorted.sort((a, b) => idNum(a.id) - idNum(b.id));
         break;
       case 'title-asc':
-        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        sorted.sort((a, b) => a.title.localeCompare(b.title) || idNum(b.id) - idNum(a.id));
         break;
       case 'title-desc':
-        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        sorted.sort((a, b) => b.title.localeCompare(a.title) || idNum(b.id) - idNum(a.id));
         break;
       case 'status-completed':
-        sorted.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? -1 : 1);
+        sorted.sort((a, b) => (a.completed === b.completed) ? (idNum(b.id) - idNum(a.id)) : a.completed ? -1 : 1);
         break;
       case 'status-incomplete':
-         sorted.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
+         sorted.sort((a, b) => (a.completed === b.completed) ? (idNum(b.id) - idNum(a.id)) : a.completed ? 1 : -1);
         break;
       case 'newest':
       default:
-        sorted.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+        sorted.sort((a, b) => idNum(b.id) - idNum(a.id));
         break;
     }
     return sorted;
@@ -66,81 +75,70 @@ export default function TodoList() {
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('todos');
     router.push('/login');
   };
 
-  const addTodo = (title: string, description: string) => {
-    const newTodo: Todo = { 
-        id: Date.now().toString(), 
-        title, 
-        description, 
-        completed: false, 
-        timeSpent: 0, 
-        timerRunning: false, 
-        lastStarted: null 
-    };
-    setTodos(prevTodos => [newTodo, ...prevTodos]);
+  const addTodo = async (title: string, description: string) => {
+    try {
+      const response = await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+      if (!response.ok) throw new Error('Failed to add task');
+      const newTodo = await response.json();
+      setTodos(prevTodos => [newTodo, ...prevTodos]);
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "Could not add task." });
+    }
   };
 
-  const updateTodo = (id: string, newTitle: string, newDescription: string) => {
-    setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, title: newTitle, description: newDescription } : todo
-    ));
+  const updateTodo = async (id: string, newTitle: string, newDescription: string) => {
+    try {
+        const response = await fetch(`/api/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle, description: newDescription }),
+        });
+        if (!response.ok) throw new Error('Failed to update task');
+        const updatedTodo = await response.json();
+        setTodos(todos.map(todo => todo.id === id ? updatedTodo : todo));
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "Could not update task." });
+    }
   };
 
-  const deleteTodo = (id: string) => {
-    setTodos(todos.filter(todo => todo.id !== id));
+  const deleteTodo = async (id: string) => {
+    try {
+      const response = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      if (response.status !== 204) throw new Error('Failed to delete task');
+      setTodos(todos.filter(todo => todo.id !== id));
+    } catch (error) {
+       toast({ variant: "destructive", title: "Error", description: "Could not delete task." });
+    }
+  };
+
+  const handleApiPatch = async (id: string, action: 'toggleComplete' | 'toggleTimer') => {
+    try {
+      const response = await fetch(`/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!response.ok) throw new Error(`Failed to ${action}`);
+      const updatedTodo = await response.json();
+      setTodos(todos.map(todo => todo.id === id ? updatedTodo : todo));
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: `Could not update task status.` });
+    }
   };
 
   const toggleComplete = (id: string) => {
-    setTodos(
-      todos.map((todo) => {
-        if (todo.id !== id) return todo;
-
-        const isCompleting = !todo.completed;
-
-        if (isCompleting) {
-          if (todo.timerRunning && todo.lastStarted) {
-            const now = Date.now();
-            const timeToAdd = (now - todo.lastStarted) / 1000;
-            return {
-              ...todo,
-              completed: true,
-              timerRunning: false,
-              lastStarted: null,
-              timeSpent: (todo.timeSpent || 0) + timeToAdd,
-            };
-          } else {
-            return { ...todo, completed: true };
-          }
-        } else {
-          return { ...todo, completed: false };
-        }
-      })
-    );
+    handleApiPatch(id, 'toggleComplete');
   };
   
   const toggleTimer = (id: string) => {
-    setTodos(
-      todos.map((todo) => {
-        if (todo.id === id && !todo.completed) {
-          const now = Date.now();
-          if (todo.timerRunning) {
-            const timeToAdd = (now - (todo.lastStarted || now)) / 1000;
-            return {
-              ...todo,
-              timerRunning: false,
-              lastStarted: null,
-              timeSpent: (todo.timeSpent || 0) + timeToAdd,
-            };
-          } else {
-            return { ...todo, timerRunning: true, lastStarted: now };
-          }
-        }
-        return todo;
-      })
-    );
+    handleApiPatch(id, 'toggleTimer');
   };
 
   return (
