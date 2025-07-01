@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Todo } from '@/lib/types';
 import CreateTodo from '@/components/create-todo';
@@ -8,6 +8,8 @@ import TodoItem from '@/components/todo-item';
 import { Button } from '@/components/ui/button';
 import { Rocket, LogOut } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const initialTodos: Todo[] = [
   { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true },
@@ -19,6 +21,7 @@ const initialTodos: Todo[] = [
 export default function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
   const router = useRouter();
 
   useEffect(() => {
@@ -32,6 +35,32 @@ export default function TodoList() {
       localStorage.setItem('todos', JSON.stringify(todos));
     }
   }, [todos, isMounted]);
+
+  const sortedTodos = useMemo(() => {
+    const sorted = [...todos];
+    switch (sortBy) {
+      case 'oldest':
+        sorted.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+        break;
+      case 'title-asc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'title-desc':
+        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'status-completed':
+        sorted.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? -1 : 1);
+        break;
+      case 'status-incomplete':
+         sorted.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
+        break;
+      case 'newest':
+      default:
+        sorted.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+        break;
+    }
+    return sorted;
+  }, [todos, sortBy]);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -81,9 +110,27 @@ export default function TodoList() {
           <CreateTodo onAdd={addTodo} />
           
           <div className="mt-8">
-            <h2 className="text-2xl font-semibold font-headline mb-4">Your Tasks</h2>
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+              <h2 className="text-2xl font-semibold font-headline">Your Tasks</h2>
+              <div className="flex items-center gap-2">
+                  <Label htmlFor="sort-by" className="text-sm font-medium text-muted-foreground shrink-0">Sort by</Label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger id="sort-by" className="w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest</SelectItem>
+                      <SelectItem value="oldest">Oldest</SelectItem>
+                      <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                      <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                      <SelectItem value="status-completed">Completed First</SelectItem>
+                      <SelectItem value="status-incomplete">Incomplete First</SelectItem>
+                    </SelectContent>
+                  </Select>
+              </div>
+            </div>
             <div className="grid gap-4">
-                {todos.map(todo => (
+                {sortedTodos.map(todo => (
                   <TodoItem 
                     key={todo.id} 
                     todo={todo}
