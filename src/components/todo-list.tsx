@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -10,6 +11,7 @@ import { Rocket, LogOut } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import PomodoroTimer from './pomodoro-timer';
 
 const initialTodos: Todo[] = [
   { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true, timeSpent: 305, timerRunning: false, lastStarted: null },
@@ -107,7 +109,7 @@ export default function TodoList() {
               completed: true,
               timerRunning: false,
               lastStarted: null,
-              timeSpent: todo.timeSpent + timeToAdd,
+              timeSpent: (todo.timeSpent || 0) + timeToAdd,
             };
           } else {
             return { ...todo, completed: true };
@@ -130,7 +132,7 @@ export default function TodoList() {
               ...todo,
               timerRunning: false,
               lastStarted: null,
-              timeSpent: todo.timeSpent + timeToAdd,
+              timeSpent: (todo.timeSpent || 0) + timeToAdd,
             };
           } else {
             return { ...todo, timerRunning: true, lastStarted: now };
@@ -150,6 +152,7 @@ export default function TodoList() {
             <h1 className="text-3xl font-bold font-headline">TaskMaster</h1>
           </div>
           <div className="flex items-center gap-2">
+            <PomodoroTimer />
             <ThemeToggle />
             <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -22,7 +23,7 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete, o
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(todo.title);
   const [editedDescription, setEditedDescription] = useState(todo.description);
-  const [displayTime, setDisplayTime] = useState(todo.timeSpent);
+  const [displayTime, setDisplayTime] = useState(todo.timeSpent || 0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -30,10 +31,10 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete, o
       interval = setInterval(() => {
         const now = Date.now();
         const elapsed = (now - (todo.lastStarted as number)) / 1000;
-        setDisplayTime(todo.timeSpent + elapsed);
+        setDisplayTime((todo.timeSpent || 0) + elapsed);
       }, 1000);
     } else {
-      setDisplayTime(todo.timeSpent);
+      setDisplayTime(todo.timeSpent || 0);
     }
 
     return () => {
@@ -56,9 +57,10 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete, o
   };
 
   const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
+    const safeTotalSeconds = totalSeconds || 0;
+    const hours = Math.floor(safeTotalSeconds / 3600);
+    const minutes = Math.floor((safeTotalSeconds % 3600) / 60);
+    const seconds = Math.floor(safeTotalSeconds % 60);
 
     const pad = (num: number) => num.toString().padStart(2, '0');
 
