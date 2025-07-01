@@ -7,6 +7,7 @@ import CreateTodo from '@/components/create-todo';
 import TodoItem from '@/components/todo-item';
 import { Button } from '@/components/ui/button';
 import { Rocket, LogOut } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 const initialTodos: Todo[] = [
   { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true },
@@ -67,10 +68,13 @@ export default function TodoList() {
             <Rocket className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold font-headline">TaskMaster</h1>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </header>
 
         <main>
