@@ -12,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 
 const initialTodos: Todo[] = [
-  { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true },
-  { id: '2', title: 'Create UI components', description: 'Build reusable components for Todo items and forms.', completed: true },
-  { id: '3', title: 'Implement state management', description: 'Use React hooks for local state management.', completed: false },
-  { id: '4', title: 'Add dummy authentication', description: 'Create a login page that redirects on success.', completed: false },
+  { id: '1', title: 'Set up project structure', description: 'Initialize Next.js app and install dependencies.', completed: true, timeSpent: 305, timerRunning: false, lastStarted: null },
+  { id: '2', title: 'Create UI components', description: 'Build reusable components for Todo items and forms.', completed: true, timeSpent: 1245, timerRunning: false, lastStarted: null },
+  { id: '3', title: 'Implement state management', description: 'Use React hooks for local state management.', completed: false, timeSpent: 623, timerRunning: false, lastStarted: null },
+  { id: '4', title: 'Add dummy authentication', description: 'Create a login page that redirects on success.', completed: false, timeSpent: 0, timerRunning: false, lastStarted: null },
 ];
 
 export default function TodoList() {
@@ -69,7 +69,15 @@ export default function TodoList() {
   };
 
   const addTodo = (title: string, description: string) => {
-    const newTodo: Todo = { id: Date.now().toString(), title, description, completed: false };
+    const newTodo: Todo = { 
+        id: Date.now().toString(), 
+        title, 
+        description, 
+        completed: false, 
+        timeSpent: 0, 
+        timerRunning: false, 
+        lastStarted: null 
+    };
     setTodos(prevTodos => [newTodo, ...prevTodos]);
   };
 
@@ -84,11 +92,55 @@ export default function TodoList() {
   };
 
   const toggleComplete = (id: string) => {
-    setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+    setTodos(
+      todos.map((todo) => {
+        if (todo.id !== id) return todo;
+
+        const isCompleting = !todo.completed;
+
+        if (isCompleting) {
+          if (todo.timerRunning && todo.lastStarted) {
+            const now = Date.now();
+            const timeToAdd = (now - todo.lastStarted) / 1000;
+            return {
+              ...todo,
+              completed: true,
+              timerRunning: false,
+              lastStarted: null,
+              timeSpent: todo.timeSpent + timeToAdd,
+            };
+          } else {
+            return { ...todo, completed: true };
+          }
+        } else {
+          return { ...todo, completed: false };
+        }
+      })
+    );
   };
   
+  const toggleTimer = (id: string) => {
+    setTodos(
+      todos.map((todo) => {
+        if (todo.id === id && !todo.completed) {
+          const now = Date.now();
+          if (todo.timerRunning) {
+            const timeToAdd = (now - (todo.lastStarted || now)) / 1000;
+            return {
+              ...todo,
+              timerRunning: false,
+              lastStarted: null,
+              timeSpent: todo.timeSpent + timeToAdd,
+            };
+          } else {
+            return { ...todo, timerRunning: true, lastStarted: now };
+          }
+        }
+        return todo;
+      })
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-4xl mx-auto p-4 sm:p-8">
@@ -137,6 +189,7 @@ export default function TodoList() {
                     onUpdate={updateTodo}
                     onDelete={deleteTodo}
                     onToggleComplete={toggleComplete}
+                    onToggleTimer={toggleTimer}
                   />
                 ))}
             </div>

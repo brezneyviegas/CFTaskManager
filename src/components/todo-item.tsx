@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Todo } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit, Save, Trash2, X } from 'lucide-react';
+import { Edit, Save, Trash2, X, Play, Pause, Timer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TodoItemProps {
@@ -15,12 +15,33 @@ interface TodoItemProps {
   onUpdate: (id: string, newTitle: string, newDescription: string) => void;
   onDelete: (id: string) => void;
   onToggleComplete: (id: string) => void;
+  onToggleTimer: (id: string) => void;
 }
 
-export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete }: TodoItemProps) {
+export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete, onToggleTimer }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(todo.title);
   const [editedDescription, setEditedDescription] = useState(todo.description);
+  const [displayTime, setDisplayTime] = useState(todo.timeSpent);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (todo.timerRunning && todo.lastStarted) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = (now - (todo.lastStarted as number)) / 1000;
+        setDisplayTime(todo.timeSpent + elapsed);
+      }, 1000);
+    } else {
+      setDisplayTime(todo.timeSpent);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [todo.timerRunning, todo.lastStarted, todo.timeSpent]);
 
   const handleSave = () => {
     if (!editedTitle.trim()) return;
@@ -32,6 +53,16 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete }:
     setEditedTitle(todo.title);
     setEditedDescription(todo.description);
     setIsEditing(false);
+  };
+
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    const pad = (num: number) => num.toString().padStart(2, '0');
+
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
   return (
@@ -78,6 +109,10 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete }:
                   <p className={cn("text-muted-foreground text-sm", todo.completed && "line-through")}>
                     {todo.description || "No description provided."}
                   </p>
+                  <div className="flex items-center gap-2 pt-2 text-muted-foreground">
+                    <Timer className="h-4 w-4" />
+                    <span className="text-sm font-mono">{formatTime(displayTime)}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -94,6 +129,18 @@ export default function TodoItem({ todo, onUpdate, onDelete, onToggleComplete }:
               </>
             ) : (
               <>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => onToggleTimer(todo.id)} 
+                    disabled={todo.completed} 
+                    aria-label={todo.timerRunning ? "Pause timer" : "Start timer"}>
+                  {todo.timerRunning ? (
+                    <Pause className="h-5 w-5 text-yellow-500" />
+                  ) : (
+                    <Play className="h-5 w-5 text-green-500" />
+                  )}
+                </Button>
                 <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} aria-label="Edit task">
                   <Edit className="h-5 w-5 text-accent" />
                 </Button>
